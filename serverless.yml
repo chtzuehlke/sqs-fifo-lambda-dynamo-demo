@@ -1,0 +1,55 @@
+service: lambda-fifo-poc
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: eu-central-1
+
+  # FIXME least privilege
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "sqs:*"
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:*"
+      Resource: "*"
+
+functions:
+  hello:
+    handler: handler.hello
+    timeout: 29
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - Queue
+              - Arn
+          batchSize: 1
+    environment:
+      TABLE: !Ref Table
+
+resources:
+  Resources:
+    Queue:
+      Type: AWS::SQS::Queue
+      Properties:
+        FifoQueue: true
+    Table:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions: 
+          - AttributeName: "Key"
+            AttributeType: "S"
+        KeySchema: 
+          - AttributeName: "Key"
+            KeyType: "HASH"
+        BillingMode: PAY_PER_REQUEST
+
+  Outputs:
+     Queue:
+       Value: !Ref Queue
+     Table:
+       Value: !Ref Table
